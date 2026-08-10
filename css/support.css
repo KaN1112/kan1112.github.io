@@ -1,0 +1,85 @@
+/* SUPPORT page layout — kept separate so deployment caches cannot omit it. */
+.support-hero { isolation: isolate; }
+
+.support-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(56px, 10vw, 150px);
+  align-items: end;
+}
+
+.support-copy { min-width: 0; }
+.support-copy > p { color: var(--muted); }
+.support-copy .lead { color: var(--text); }
+.support-note {
+  margin-top: 35px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.support-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(48px, 8vw, 120px);
+  width: 100%;
+  max-width: none;
+  padding-inline: max(var(--pad), calc((100vw - var(--max)) / 2));
+  background: var(--surface);
+}
+
+.support-panel-copy { min-width: 0; }
+.support-panel-copy > p:last-child { color: var(--muted); }
+
+.support-circle {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  width: clamp(210px, 24vw, 330px);
+  aspect-ratio: 1;
+  border: 1px solid var(--primary);
+  border-radius: 50%;
+  color: var(--text);
+  font-size: clamp(20px, 2vw, 28px);
+  font-weight: 600;
+  transition: transform .35s var(--ease), background .35s var(--ease), color .35s var(--ease);
+}
+
+.support-circle b { color: var(--primary); font-size: 30px; }
+.support-circle small {
+  position: absolute;
+  bottom: 23%;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: .18em;
+}
+.support-circle:hover {
+  transform: rotate(-4deg) scale(1.02);
+  background: var(--primary);
+  color: #111;
+}
+.support-circle:hover b,
+.support-circle:hover small { color: #111; }
+
+.support-thanks h2 {
+  margin-bottom: 48px;
+  font-size: clamp(48px, 8vw, 112px);
+  line-height: 1.02;
+}
+.support-thanks h2 em { color: var(--primary); font-style: normal; }
+
+@media (max-width: 800px) {
+  .support-intro { grid-template-columns: 1fr; gap: 42px; }
+  .support-panel { align-items: flex-start; flex-direction: column; }
+  .support-circle { align-self: center; width: min(78vw, 300px); }
+}
+
+@media (max-width: 480px) {
+  .support-panel { gap: 54px; }
+  .support-thanks h2 { font-size: clamp(42px, 13vw, 64px); }
+}
