@@ -10,235 +10,110 @@ if (!container && pageHero) {
 }
 
 const hero = container?.closest(".hero, .page-hero");
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-if (container && hero && !reducedMotion.matches) {
-  try {
-    initWebGL();
-  } catch {
-    container.classList.add("webgl-unavailable");
-  }
+if (container && hero && !motion.matches && window.THREE) {
+  try { initWebGL(); } catch { container.classList.add("webgl-unavailable"); }
 }
 
 function initWebGL() {
-  const testCanvas = document.createElement("canvas");
-  const canUseWebGL = Boolean(
-    testCanvas.getContext("webgl2", { failIfMajorPerformanceCaveat: true }) ||
-    testCanvas.getContext("webgl", { failIfMajorPerformanceCaveat: true })
-  );
-
-  if (!canUseWebGL) {
+  const test = document.createElement("canvas");
+  if (!test.getContext("webgl2", { failIfMajorPerformanceCaveat: true }) && !test.getContext("webgl", { failIfMajorPerformanceCaveat: true })) {
     container.classList.add("webgl-unavailable");
     return;
   }
 
   const THREE = window.THREE;
-  if (!THREE) {
-    container.classList.add("webgl-unavailable");
-    return;
-  }
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 30);
-  camera.position.z = 5.8;
-
-  const renderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: false,
-    powerPreference: "low-power"
-  });
+  const camera = new THREE.PerspectiveCamera(40, 1, .1, 50);
+  camera.position.set(0, 0, 11);
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false, powerPreference: "low-power" });
   renderer.setClearColor(0x000000, 0);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
   renderer.domElement.setAttribute("aria-hidden", "true");
   container.appendChild(renderer.domElement);
 
-  const isCompact = window.matchMedia("(max-width: 800px)").matches;
-  const particleCount = isCompact ? 85 : 175;
-  container.dataset.particleCount = String(particleCount);
-  const positions = new Float32Array(particleCount * 3);
-  const colors = new Float32Array(particleCount * 3);
-  const drift = new Float32Array(particleCount * 3);
-  const white = new THREE.Color(0xf2f2f2);
-  const orange = new THREE.Color(0xff6a00);
+  const compact = matchMedia("(max-width: 800px)").matches;
+  const structure = new THREE.Group();
+  structure.position.x = compact ? 1.2 : 2.5;
+  scene.add(structure);
 
-  for (let index = 0; index < particleCount; index += 1) {
-    const offset = index * 3;
-    positions[offset] = THREE.MathUtils.randFloatSpread(11);
-    positions[offset + 1] = THREE.MathUtils.randFloatSpread(7);
-    positions[offset + 2] = THREE.MathUtils.randFloat(-2.4, 1.1);
+  const orange = new THREE.LineBasicMaterial({ color: 0xff6a00, transparent: true, opacity: .82 });
+  const pale = new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: .22 });
+  const darkFace = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .76, side: THREE.DoubleSide });
+  const accentFace = new THREE.MeshBasicMaterial({ color: 0xff6a00, transparent: true, opacity: .14, side: THREE.DoubleSide });
+  const count = compact ? 7 : 13;
+  const geometries = [], materials = [orange, pale, darkFace, accentFace];
 
-    const color = Math.random() < 0.28 ? orange : white;
-    colors[offset] = color.r;
-    colors[offset + 1] = color.g;
-    colors[offset + 2] = color.b;
-
-    drift[offset] = THREE.MathUtils.randFloat(-0.0008, 0.0008);
-    drift[offset + 1] = THREE.MathUtils.randFloat(0.00035, 0.0012);
-    drift[offset + 2] = THREE.MathUtils.randFloat(-0.00025, 0.00025);
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-
-  const material = new THREE.PointsMaterial({
-    size: isCompact ? 0.045 : 0.052,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.66,
-    vertexColors: true,
-    depthWrite: false,
-    blending: THREE.NormalBlending
-  });
-  const points = new THREE.Points(geometry, material);
-  scene.add(points);
-
-  /* A sparse network makes the depth clearly WebGL without becoming flashy. */
-  const connectionLimit = isCompact ? 14 : 30;
-  const connectionPairs = [];
-  for (let source = 0; source < particleCount && connectionPairs.length < connectionLimit; source += 4) {
-    const sourceOffset = source * 3;
-    let nearest = -1;
-    let nearestDistance = 2.15;
-    for (let target = source + 1; target < particleCount; target += 1) {
-      const targetOffset = target * 3;
-      const dx = positions[sourceOffset] - positions[targetOffset];
-      const dy = positions[sourceOffset + 1] - positions[targetOffset + 1];
-      const dz = positions[sourceOffset + 2] - positions[targetOffset + 2];
-      const distance = Math.hypot(dx, dy, dz);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearest = target;
-      }
+  for (let i = 0; i < count; i++) {
+    const w = 1.1 + (i % 4) * .48;
+    const h = .75 + (i % 3) * .55;
+    const d = .18 + (i % 2) * .18;
+    const box = new THREE.BoxGeometry(w, h, d);
+    geometries.push(box);
+    const frame = new THREE.LineSegments(new THREE.EdgesGeometry(box), i % 3 === 0 ? pale : orange);
+    frame.position.set(((i * 1.73) % 7) - 3.1, ((i * 2.1) % 6) - 2.6, -i * .28);
+    frame.rotation.set((i % 3 - 1) * .12, (i % 4 - 1.5) * .16, (i % 2 ? -1 : 1) * .08);
+    frame.userData = { phase: i * .7, speed: .00013 + (i % 4) * .000025, baseY: frame.position.y };
+    structure.add(frame);
+    if (i % 3 === 0) {
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(w * .88, h * .84), i % 2 ? accentFace : darkFace);
+      geometries.push(panel.geometry);
+      panel.position.copy(frame.position);
+      panel.position.z += .03;
+      panel.rotation.copy(frame.rotation);
+      panel.userData.frame = frame;
+      structure.add(panel);
     }
-    if (nearest >= 0) connectionPairs.push([source, nearest]);
   }
 
-  const linePositions = new Float32Array(connectionPairs.length * 6);
-  const lineGeometry = new THREE.BufferGeometry();
-  lineGeometry.setAttribute("position", new THREE.BufferAttribute(linePositions, 3));
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: 0xff7a1a,
-    transparent: true,
-    opacity: isCompact ? 0.16 : 0.2,
-    depthWrite: false
-  });
-  const connectionLines = new THREE.LineSegments(lineGeometry, lineMaterial);
-  scene.add(connectionLines);
-
-  const pointer = { x: 0, y: 0, targetX: 0, targetY: 0 };
-  let scrollProgress = 0;
-  let frameId = 0;
-  let running = false;
-  let previousTime = 0;
-
+  const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
+  let scroll = 0, frameId = 0, running = true;
   const resize = () => {
-    const width = Math.max(hero.clientWidth, 1);
-    const height = Math.max(hero.clientHeight, 1);
+    const width = Math.max(hero.clientWidth, 1), height = Math.max(hero.clientHeight, 1);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
     renderer.setSize(width, height, false);
   };
-
-  const updatePointer = (event) => {
-    pointer.targetX = (event.clientX / window.innerWidth - 0.5) * 0.34;
-    pointer.targetY = (event.clientY / window.innerHeight - 0.5) * -0.22;
-  };
-
-  const updateScroll = () => {
-    scrollProgress = Math.min(window.scrollY / Math.max(hero.clientHeight, 1), 1.25);
-  };
-
-  const render = (time) => {
+  const onPointer = event => { pointer.tx = (event.clientX / innerWidth - .5) * .7; pointer.ty = (event.clientY / innerHeight - .5) * -.45; };
+  const onScroll = () => { scroll = Math.min(scrollY / Math.max(hero.clientHeight, 1), 1.2); };
+  const render = time => {
     if (!running) return;
-    const deltaScale = Math.min((time - previousTime) / 16.67 || 1, 2);
-    previousTime = time;
-    const attribute = geometry.attributes.position;
-
-    for (let index = 0; index < particleCount; index += 1) {
-      const offset = index * 3;
-      attribute.array[offset] += drift[offset] * deltaScale;
-      attribute.array[offset + 1] += drift[offset + 1] * deltaScale;
-      attribute.array[offset + 2] += drift[offset + 2] * deltaScale;
-
-      if (attribute.array[offset] > 5.6) attribute.array[offset] = -5.6;
-      if (attribute.array[offset] < -5.6) attribute.array[offset] = 5.6;
-      if (attribute.array[offset + 1] > 3.6) attribute.array[offset + 1] = -3.6;
-    }
-    attribute.needsUpdate = true;
-
-    const lineAttribute = lineGeometry.attributes.position;
-    connectionPairs.forEach(([source, target], pairIndex) => {
-      const lineOffset = pairIndex * 6;
-      const sourceOffset = source * 3;
-      const targetOffset = target * 3;
-      lineAttribute.array[lineOffset] = attribute.array[sourceOffset];
-      lineAttribute.array[lineOffset + 1] = attribute.array[sourceOffset + 1];
-      lineAttribute.array[lineOffset + 2] = attribute.array[sourceOffset + 2];
-      lineAttribute.array[lineOffset + 3] = attribute.array[targetOffset];
-      lineAttribute.array[lineOffset + 4] = attribute.array[targetOffset + 1];
-      lineAttribute.array[lineOffset + 5] = attribute.array[targetOffset + 2];
+    pointer.x += (pointer.tx - pointer.x) * .035;
+    pointer.y += (pointer.ty - pointer.y) * .035;
+    structure.rotation.y = -.12 + pointer.x * .24;
+    structure.rotation.x = pointer.y * .16 - scroll * .04;
+    structure.position.y = scroll * .18;
+    structure.children.forEach(object => {
+      if (object.userData.baseY !== undefined) {
+        object.position.y = object.userData.baseY + Math.sin(time * object.userData.speed + object.userData.phase) * .11;
+        object.rotation.y += .00022;
+      } else if (object.userData.frame) {
+        object.position.y = object.userData.frame.position.y;
+        object.rotation.copy(object.userData.frame.rotation);
+      }
     });
-    lineAttribute.needsUpdate = true;
-
-    pointer.x += (pointer.targetX - pointer.x) * 0.025;
-    pointer.y += (pointer.targetY - pointer.y) * 0.025;
-    camera.position.x = pointer.x;
-    camera.position.y = pointer.y - scrollProgress * 0.16;
-    points.rotation.z = pointer.x * 0.018;
-    points.position.y = scrollProgress * 0.1;
-    connectionLines.rotation.z = points.rotation.z;
-    connectionLines.position.y = points.position.y;
     renderer.render(scene, camera);
-    frameId = window.requestAnimationFrame(render);
+    frameId = requestAnimationFrame(render);
+  };
+  const visibility = () => {
+    running = !document.hidden;
+    if (running) frameId = requestAnimationFrame(render); else cancelAnimationFrame(frameId);
   };
 
-  const start = () => {
-    if (running || document.hidden) return;
-    running = true;
-    container.dataset.rendering = "true";
-    previousTime = 0;
-    frameId = window.requestAnimationFrame(render);
-  };
-
-  const stop = () => {
-    running = false;
-    container.dataset.rendering = "false";
-    window.cancelAnimationFrame(frameId);
-  };
-
-  const handleVisibility = () => document.hidden ? stop() : start();
-  const handleMotionPreference = (event) => {
-    if (event.matches) {
-      stop();
-      container.classList.remove("is-ready");
-    } else {
-      start();
-      container.classList.add("is-ready");
-    }
-  };
-
-  resize();
-  updateScroll();
-  window.addEventListener("resize", resize, { passive: true });
-  window.addEventListener("pointermove", updatePointer, { passive: true });
-  window.addEventListener("scroll", updateScroll, { passive: true });
-  document.addEventListener("visibilitychange", handleVisibility);
-  reducedMotion.addEventListener("change", handleMotionPreference);
+  resize(); onScroll();
+  addEventListener("resize", resize, { passive: true });
+  addEventListener("pointermove", onPointer, { passive: true });
+  addEventListener("scroll", onScroll, { passive: true });
+  document.addEventListener("visibilitychange", visibility);
   container.classList.add("is-ready");
-  start();
+  frameId = requestAnimationFrame(render);
 
-  window.addEventListener("pagehide", () => {
-    stop();
-    window.removeEventListener("resize", resize);
-    window.removeEventListener("pointermove", updatePointer);
-    window.removeEventListener("scroll", updateScroll);
-    document.removeEventListener("visibilitychange", handleVisibility);
-    reducedMotion.removeEventListener("change", handleMotionPreference);
-    geometry.dispose();
-    material.dispose();
-    lineGeometry.dispose();
-    lineMaterial.dispose();
+  addEventListener("pagehide", () => {
+    running = false; cancelAnimationFrame(frameId);
+    geometries.forEach(item => item.dispose());
+    materials.forEach(item => item.dispose());
     renderer.dispose();
   }, { once: true });
 }
